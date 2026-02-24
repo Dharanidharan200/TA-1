@@ -1,0 +1,7 @@
+// validations/auth.validation.js
+const Joi = require("joi");
+
+exports.registerSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().min(6).required(),
+});
