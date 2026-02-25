@@ -1,24 +1,37 @@
-// routes/quiz.routes.js
+const router =
+  require("express").Router();
 
-const router = require("express").Router();
-const { authenticate } = require("../middleware/auth.middleware");
-const { authorize } = require("../middleware/rbac.middleware");
-const quiz = require("../controllers/quiz.controller");
+const quiz =
+  require("../controllers/quiz.controller");
 
-// Instructor creates questions
-router.post(
-  "/questions",
+const {
   authenticate,
-  authorize("INSTRUCTOR"),
-  quiz.createQuestion
-);
+} = require("../middleware/auth.middleware");
 
-// Student attempts quiz
-router.post(
-  "/attempt",
-  authenticate,
-  authorize("STUDENT"),
-  quiz.submitQuiz
-);
+const {
+  authorize,
+} = require("../middleware/rbac.middleware");
+
+/* Instructor */
+router.post("/", authenticate, authorize("INSTRUCTOR"), quiz.createQuiz);
+
+router.get("/", authenticate, authorize("INSTRUCTOR"), quiz.getQuizzes);
+
+router.get("/course/:courseId", authenticate, quiz.getQuizzesByCourse);
+
+router.post("/questions", authenticate, authorize("INSTRUCTOR"), quiz.createQuestion);
+
+router.post("/assign", authenticate, authorize("INSTRUCTOR"), quiz.assignQuiz);
+
+/* Student */
+router.get("/assigned", authenticate, authorize("STUDENT"), quiz.getAssignedQuizzes);
+
+router.post("/attempt", authenticate, authorize("STUDENT"), quiz.submitQuiz);
+
+
+router.get("/:quizId/questions", authenticate, authorize("INSTRUCTOR", "STUDENT"), quiz.getQuestionsByQuiz);
+
+
+router.post("/quizCount", authenticate, authorize("INSTRUCTOR", "STUDENT"), quiz.startQuiz);
 
 module.exports = router;

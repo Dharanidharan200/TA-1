@@ -12,9 +12,11 @@ exports.register = async (req, res) => {
         );
 
         const user = await User.create({
+            name: req.body.name,
             email: req.body.email,
             password: hashedPassword,
             role: req.body.role || "STUDENT",
+            approved: false,
         });
 
         const userData = user.toJSON();
@@ -24,33 +26,93 @@ exports.register = async (req, res) => {
 
     } catch (err) {
         console.log(err);
-        
+
         res.send({ msg: `Error While Register` })
     }
 };
 
-exports.login = async (req, res, next) => {
-    try {
-        const user = await User.findOne({
-            where: { email: req.body.email },
+exports.login = async (req, res) => {
+    const { email, password } = req.body;
+
+    /* FIND USER */
+    const user = await User.findOne({
+        where: { email },
+    });
+
+    if (!user) {
+        return res.status(404).json({
+            message: "User not found",
+        });
+    }
+
+    /* CHECK PASSWORD */
+    const valid = await bcrypt.compare(
+        password,
+        user.password
+    );
+
+    if (!valid) {
+        return res.status(401).json({
+            message: "Invalid password",
+        });
+    }
+
+    /* 🔥 APPROVAL CHECK */
+    if (
+        user.role === "STUDENT" &&
+        !user.approved
+    ) {
+        return res.status(403).json({
+            message:
+                "Waiting for admin approval",
+        });
+    }
+
+    /* TOKEN */
+    const token = jwt.sign(
+        {
+            id: user.id,
+            role: user.role,
+        },
+        process.env.JWT_SECRET
+    );
+
+    res.json({
+        token,
+        role: user.role,
+    });
+};
+
+exports.getUsers = async (req, res) => {
+    const { role } = req.query;
+
+    const where = {};
+
+    if (role) where.role = role;
+
+    const users =
+        await User.findAndCountAll({
+            where,
+            order: [["createdAt", "DESC"]],
         });
 
-        const match = await bcrypt.compare(
-            req.body.password,
-            user.password
-        );
+    res.json(users);
+};
 
-        if (!match)
-            return res.status(400).json({ message: "Invalid" });
+exports.deleteUser = async (req, res) => {
+    const { id } = req.params;
 
-        const token = jwt.sign(
-            { id: user.id, role: user.role },
-            process.env.JWT_SECRET
-        );
-        var role = user.role
+    const deleted = await User.destroy({
+        where: { id },
+    });
 
-        res.json({ token, role });
-    } catch (err) {
-        next(err);
+    if (!deleted) {
+        return res.status(404).json({
+            message: "User not found",
+        });
     }
+
+    res.json({
+        message: "User deleted",
+    });
 };

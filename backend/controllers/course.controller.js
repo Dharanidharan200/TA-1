@@ -43,3 +43,14 @@ exports.getCourses = async (req, res, next) => {
     next(err);
   }
 };
+
+// controllers/course.controller.js
+exports.deleteCourse = async (req, res) => {
+  const { id } = req.params;
+
+  await Course.destroy({
+    where: { id },
+  });
+
+  res.json({ message: "Course deleted" });
+};

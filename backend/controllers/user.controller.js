@@ -48,3 +48,36 @@ exports.approveStudent = async (req, res, next) => {
     next(err);
   }
 };
+exports.getUsers = async (req, res) => {
+  const { role, approved } = req.query;
+
+  const where = {};
+
+  /* Filter by role */
+  if (role) {
+    where.role = role;
+  }
+
+  /* Filter by approval */
+  if (approved !== undefined) {
+    where.approved = approved === "true";
+  }
+
+  const users =
+    await User.findAndCountAll({
+      where,
+      order: [["createdAt", "DESC"]],
+    });
+
+  res.json(users);
+};
+/* DELETE USER */
+exports.deleteUser = async (req, res) => {
+  const { id } = req.params;
+
+  await User.destroy({
+    where: { id },
+  });
+
+  res.json({ message: "User deleted" });
+};

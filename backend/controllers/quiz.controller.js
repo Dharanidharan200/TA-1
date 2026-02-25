@@ -1,50 +1,230 @@
-// controllers/quiz.controller.js
+const {
+  Quiz,
+  QuizQuestion,
+  QuizAssignment,
+  QuizAttempt,
+  Course
+} = require("../models");
 
-const { QuizQuestion, QuizAttempt } = require("../models");
 
-exports.createQuestion = async (req, res, next) => {
+exports.createQuiz = async (req, res) => {
   try {
-    const question = await QuizQuestion.create(req.body);
-    res.json(question);
+    const { title, courseId } =
+      req.body;
+
+    const quiz = await Quiz.create({
+      title,
+      courseId,
+      instructorId: req.user.id,
+    });
+
+    res.json(quiz);
   } catch (err) {
-    next(err);
+    console.error(err);
+    res.status(500).json({
+      message: "Quiz creation failed",
+    });
   }
 };
 
-exports.submitQuiz = async (req, res, next) => {
+
+exports.getQuizzes = async (req, res) => {
   try {
-    const { lessonId, answers } = req.body;
+    const { courseId } = req.query; // optional query parameter
+    const instructorId = req.user.id;
 
-    const questions = await QuizQuestion.findAll({
-      where: { LessonId: lessonId },
-    });
+    const whereClause = { instructorId };
+    if (courseId) {
+      whereClause.courseId = courseId; // filter by course if provided
+    }
 
-    let score = 0;
-    const incorrect = [];
+    const quizzes = await Quiz.findAll({ where: whereClause });
 
-    questions.forEach((q) => {
-      if (answers[q.id] === q.correctAnswer) {
-        score++;
-      } else {
-        incorrect.push({
-          question: q.question,
-          correct: q.correctAnswer,
-        });
-      }
-    });
-
-    await QuizAttempt.create({
-      UserId: req.user.id,
-      LessonId: lessonId,
-      score,
-    });
-
-    res.json({
-      score,
-      total: questions.length,
-      incorrect,
-    });
+    res.json(quizzes);
   } catch (err) {
-    next(err);
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+exports.getQuizzesByCourse = async (req, res) => {
+  const { courseId } =
+    req.params;
+
+  const quizzes =
+    await Quiz.findAll({
+      where: { courseId },
+    });
+
+  res.json(quizzes);
+};
+
+
+exports.createQuestion = async (req, res) => {
+  const {
+    quizId,
+    question,
+    optionA,
+    optionB,
+    optionC,
+    optionD,
+    correctAnswer,
+  } = req.body;
+
+  const q =
+    await QuizQuestion.create({
+      quizId,
+      question,
+      optionA,
+      optionB,
+      optionC,
+      optionD,
+      correctAnswer,
+    });
+
+  res.json(q);
+};
+
+exports.assignQuiz = async (
+  req,
+  res
+) => {
+  const { quizId, studentIds } =
+    req.body;
+
+  const data = studentIds.map(
+    (id) => ({
+      quizId,
+      studentId: id,
+    })
+  );
+
+  await QuizAssignment.bulkCreate(
+    data
+  );
+
+  res.json({
+    message: "Quiz assigned",
+  });
+};
+
+
+exports.getAssignedQuizzes = async (req, res) => {
+  try {
+    const quizzes = await QuizAssignment.findAll({
+      where: { studentId: req.user.id },
+      include: [
+        {
+          model: Quiz,
+          as: 'quiz',
+          attributes: ['id', 'title'],
+          include: [
+            {
+              model: Course,
+              as: 'course', // now matches the association
+              attributes: ['id', 'title', 'description'],
+            }
+          ],
+        },
+      ],
+    });
+
+    res.json(quizzes);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
+exports.submitQuiz = async (
+  req,
+  res
+) => {
+  const { quizId, answers } =
+    req.body;
+
+  const questions =
+    await QuizQuestion.findAll({
+      where: { quizId },
+    });
+
+  let score = 0;
+
+  questions.forEach((q) => {
+    if (
+      answers[q.id] ===
+      q.correctAnswer
+    ) {
+      score++;
+    }
+  });
+
+  await QuizAttempt.create({
+    quizId,
+    studentId: req.user.id,
+    score,
+  });
+
+  res.json({
+    score,
+    total: questions.length,
+  });
+};
+
+exports.getQuestionsByQuiz = async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    let attributes = ["id", "question", "createdAt", "updatedAt", "optionA", "optionB", "optionC", "optionD"];
+    const userRole = req.query.role || req.body.role || "STUDENT";
+    // If the user is an instructor, include the 'answer' column
+    if (userRole === "INSTRUCTOR") {
+      attributes.push("correctAnswer");
+    }
+    const questions = await QuizQuestion.findAll({
+      where: { quizId },
+      attributes,
+      order: [["createdAt", "DESC"]],
+    });
+
+
+    res.json(questions);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Failed to fetch questions",
+    });
+  }
+};
+
+// POST /quiz/start
+exports.startQuiz = async (req, res) => {
+  try {
+    const { userId, quizId } = req.body;
+
+    // Try to find an existing attempt for this user + quiz
+    let attempt = await QuizAttempt.findOne({
+      where: { studentId: userId, quizId },
+    });
+
+    if (attempt) {
+      // If it exists, increment the counter
+      attempt.attemptCount = (attempt.attemptCount || 1) + 1;
+      await attempt.save();
+    } else {
+      // If it doesn't exist, create a new record with attemptCount = 1
+      attempt = await QuizAttempt.create({
+        studentId: userId,
+        quizId,
+        attemptCount: 1,
+      });
+    }
+
+    res.json({ message: "Quiz started", attempts: attempt.attemptCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to start quiz" });
   }
 };

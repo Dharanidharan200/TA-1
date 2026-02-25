@@ -10,5 +10,6 @@ router.post("/", authenticate, authorize("INSTRUCTOR"), courseController.createC
 
 // Get courses (pagination + search)
 router.get("/", authenticate, courseController.getCourses);
+router.delete("/:id",authenticate,authorize("INSTRUCTOR"),courseController.deleteCourse);
 
 module.exports = router;
