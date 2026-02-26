@@ -18,25 +18,25 @@ export default function Login() {
       const authData = {
         token: res.data.token,
         user: {
+          id: res.data.id,      
           role: res.data.role,
         },
       };
+
+      localStorage.setItem("token", authData.token);  
       localStorage.setItem("role", authData.user.role);
+      localStorage.setItem("userId", authData.user.id); 
       login(authData);
 
       if (authData.user.role === "ADMIN")
         nav("/admin");
-      else if (
-        authData.user.role === "INSTRUCTOR"
-      )
+      else if (authData.user.role === "INSTRUCTOR")
         nav("/instructor");
-      else nav("/student");
+      else
+        nav("/student");
 
     } catch (err) {
-      alert(
-        err.response?.data?.message ||
-        "Login failed"
-      );
+      alert(err.response?.data?.message || "Login failed");
     }
   };
 

@@ -33,5 +33,9 @@ router.get("/:quizId/questions", authenticate, authorize("INSTRUCTOR", "STUDENT"
 
 
 router.post("/quizCount", authenticate, authorize("INSTRUCTOR", "STUDENT"), quiz.startQuiz);
+router.get("/counts/:userId", authenticate, authorize("INSTRUCTOR", "STUDENT"), quiz.getQuizCount);
+
+router.post("/submit", authenticate, authorize("INSTRUCTOR", "STUDENT"), quiz.submitQuiz);
+router.get("/results/:userId", authenticate, authorize("INSTRUCTOR", "STUDENT"), quiz.getUserResults);
 
 module.exports = router;

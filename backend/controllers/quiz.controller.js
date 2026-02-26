@@ -6,6 +6,7 @@ const {
   Course
 } = require("../models");
 
+const { Question } = require("../models");
 
 exports.createQuiz = async (req, res) => {
   try {
@@ -138,41 +139,6 @@ exports.getAssignedQuizzes = async (req, res) => {
 };
 
 
-exports.submitQuiz = async (
-  req,
-  res
-) => {
-  const { quizId, answers } =
-    req.body;
-
-  const questions =
-    await QuizQuestion.findAll({
-      where: { quizId },
-    });
-
-  let score = 0;
-
-  questions.forEach((q) => {
-    if (
-      answers[q.id] ===
-      q.correctAnswer
-    ) {
-      score++;
-    }
-  });
-
-  await QuizAttempt.create({
-    quizId,
-    studentId: req.user.id,
-    score,
-  });
-
-  res.json({
-    score,
-    total: questions.length,
-  });
-};
-
 exports.getQuestionsByQuiz = async (req, res) => {
   try {
     const { quizId } = req.params;
@@ -226,5 +192,116 @@ exports.startQuiz = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to start quiz" });
+  }
+};
+exports.getQuizCount = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "UserId is required" });
+    }
+
+    const attempts = await QuizAttempt.findAll({
+      where: { studentId: userId },
+      include: [{
+        model: Quiz,
+        as: 'quiz', // make sure your association uses this alias
+        attributes: ['title'],
+      }],
+    });
+
+    // Convert into { quizId: { title, attemptCount } }
+    const quizCounts = {};
+
+    attempts.forEach((attempt) => {
+      quizCounts[attempt.quizId] = {
+        title: attempt.quiz?.title || "Unknown Quiz",
+        attemptCount: attempt.attemptCount || 0,
+      };
+    });
+
+    res.json(quizCounts); // ✅ returns object with title + count
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch quiz counts" });
+  }
+};
+
+
+exports.startAttempt = async (req, res) => {
+  try {
+    const { userId, quizId } = req.body;
+
+    let attempt = await QuizAttempt.findOne({
+      where: { studentId: userId, quizId },
+    });
+
+    if (attempt) {
+      attempt.attemptCount += 1;
+      await attempt.save();
+    } else {
+      attempt = await QuizAttempt.create({
+        studentId: userId,
+        quizId,
+        attemptCount: 1,
+        score: 0, // initial score
+      });
+    }
+
+    res.json({ message: "Attempt recorded", attemptCount: attempt.attemptCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to record attempt" });
+  }
+};
+
+exports.submitQuiz = async (req, res) => {
+  try {
+    const { quizId, userId, answers } = req.body;
+
+    const questions = await QuizQuestion.findAll({ where: { quizId } });
+    let score = 0;
+
+    questions.forEach((q) => {
+      if (answers[q.id] === q.correctAnswer) {
+        score++;
+      }
+    });
+
+    // Update existing attempt with score
+    const attempt = await QuizAttempt.findOne({
+      where: { studentId: userId, quizId },
+    });
+
+    if (attempt) {
+      attempt.score = score;
+      await attempt.save();
+    }
+
+    res.json({ score });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to submit quiz" });
+  }
+};
+exports.getUserResults = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const attempts = await QuizAttempt.findAll({ where: { studentId: userId } });
+
+    // Map to { quizId, attemptNumber, score } for frontend
+    const results = attempts.map((a) => ({
+      quizId: a.quizId,
+      attempt: a.attemptNumber,
+      score: a.score,
+      createdAt: a.createdAt,
+    }));
+
+    res.json(results);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch results" });
   }
 };

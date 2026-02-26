@@ -15,7 +15,6 @@ export default function Sidebar() {
 
       {user?.role === "ADMIN" && (
         <>
-          <NavLink to="/admin">Dashboard</NavLink>
           <NavLink to="/admin/instructors">Instructors</NavLink>
           <NavLink to="/admin/approve-students">Approve Students</NavLink>
         </>
@@ -46,9 +45,7 @@ export default function Sidebar() {
           <NavLink to="/student">
             Dashboard
           </NavLink>
-          <NavLink to="/student/quiz">
-            Quiz
-          </NavLink>
+          
         </>
       )}
 

@@ -12,7 +12,6 @@ import RoleGuard from "../components/RoleGuard";
 import DashboardLayout from "../layout/DashboardLayout";
 
 /* Admin */
-import AdminDashboard from "../pages/admin/Dashboard";
 import Instructors from "../pages/admin/Instructors";
 import ApproveStudents from "../pages/admin/ApproveStudents";
 
@@ -44,7 +43,7 @@ export default function AppRouter() {
             <ProtectedRoute>
               <RoleGuard role="ADMIN">
                 <DashboardLayout>
-                  <AdminDashboard />
+                  <Instructors />
                 </DashboardLayout>
               </RoleGuard>
             </ProtectedRoute>

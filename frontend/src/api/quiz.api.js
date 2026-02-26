@@ -46,3 +46,9 @@ export const getQuestionsByQuizApi = (quizId) => {
 export const getQuizzesByCourseApi = async (courseId) => {
   return await axios.get(`/quiz/course/${courseId}`);
 };
+// frontend/api/quiz.api.js
+
+// Get all quiz attempts / results for a user
+export const getUserResultsApi = (userId) => {
+  return axios.get(`/quiz/results/${userId}`);
+};

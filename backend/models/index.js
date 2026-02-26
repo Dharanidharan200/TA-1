@@ -105,7 +105,7 @@ QuizAssignment.belongsTo(Quiz, { foreignKey: 'quizId', as: 'quiz' });
 
 // Quiz model
 Quiz.hasMany(QuizAssignment, { foreignKey: 'quizId', as: 'assignments' });
-
+QuizAttempt.belongsTo(Quiz, { foreignKey: "quizId", as: "quiz" }); // ✅ add alias
 
 
 Quiz.hasMany(QuizAttempt, {
